@@ -1,0 +1,163 @@
+/*
+ |------------------------
+ | Git
+
+ git add .
+ git commit -m "message"
+ git push --all google
+
+ ## git google gcloud setup ##
+ gcloud init && git config --global credential.https://source.developers.google.com.helper gcloud.sh
+ git remote add google https://source.developers.google.com/p/app-com/r/app
+ ## git clone ##
+
+ gcloud source repos clone app --project=app-com
+
+
+ git stash
+ git pull
+ |------------------------
+*//*
+ |------------------------
+ | Helm Install
+
+  gunzip helm-v2.13.1-linux-amd64.tar.gz;
+
+  tar -xvf helm-v2.13.1-linux-amd64.tar;
+  sudo mv l*/helm /usr/local/bin/.
+  |------------------------
+ *//*
+  |------------------------
+  | Tiller Install
+
+  gcloud container clusters get-credentials app --zone asia-south1-a;
+
+  cd app;
+  kubectl create namespace app;
+  kubectl apply -f infrastructure/rbac-tiller.yaml;
+  helm init --tiller-namespace app --service-account tiller;
+  export TILLER_NAMESPACE=app;
+  helm version;
+  kubectl version;
+ |------------------------
+*//*
+ |------------------------
+ | Image Build
+
+  gcloud container clusters get-credentials app --zone asia-south1-a;
+  docker build --no-cache -t gcr.io/app-com/app .;
+  gcloud docker -- push gcr.io/app-com/app:latest;
+  helm upgrade app ./app -i;
+
+  gcloud container clusters get-credentials app --zone asia-south1-a;
+  docker build -t gcr.io/app-com/app .;
+  gcloud docker -- push gcr.io/app-com/app:latest;
+  helm upgrade app ./app -i;
+
+  gcloud builds submit --tag gcr.io/app-com/app .
+  helm upgrade app ./app -i
+  |------------------------
+*//*
+  |------------------------
+  | Cert Manager And Nginx Ingress
+
+  helm install stable/nginx-ingress --name nginx-ingress --namespace app --set rbac.create=true,controller.service.externalTrafficPolicy=Local;
+  INGRESS_IP=$(kubectl get svc --namespace app --selector=app=nginx-ingress,component=controller -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}');echo ${INGRESS_IP};
+
+  ##helm install --name cert-manager --namespace app --set ingressShim.defaultIssuerName=letsencrypt-prod --set ingressShim.defaultIssuerKind=ClusterIssuer stable/cert-manager --version v0.5.2;
+  ##helm install --name cert-manager --namespace app --set ingressShim.defaultIssuerName=letsencrypt-staging --set ingressShim.defaultIssuerKind=ClusterIssuer stable/cert-manager --version v0.5.2;
+  kubectl apply -f infrastructure/acme-prod-cluster-issuer.yaml;
+  |------------------------
+*//*
+  |------------------------
+  | Redis
+  kubectl create -f redis/volume-manifest.yaml;
+  kubectl create -f redis/service-manifest.yaml;
+  kubectl create -f redis/statefulset-manifest.yaml
+  |------------------------
+ *//*
+  |------------------------
+  | MySql (optional for production)
+
+   helm install stable/mysql --wait --timeout 400 --name mysql --namespace app --set mysqlRootPassword=root,mysqlDatabase=app
+  |------------------------
+*//*
+  |------------------------
+  | Deploy app
+  helm dependency update
+  helm install --name app --dry-run --debug ./app;
+  helm upgrade app ./app -i
+  |------------------------
+*//*
+  |------------------------
+  | app config
+  kubectl get pods -n=app
+  kubectl exec -it <pod> bash -n=app
+
+
+
+  php artisan migrate
+
+  php artisan route:cache
+  php artisan view:cache
+
+  php artisan config:cache
+  |------------------------
+*//*
+  |------------------------
+  | Test
+
+  export POD_NAME=$(kubectl get pods --namespace app -l "app=app,release=app" -o jsonpath="{.items[0].metadata.name}")
+  echo "Visit http://127.0.0.1:8080 to use your application"
+  kubectl port-forward $POD_NAME 8080:80
+  |------------------------
+*//*
+  |------------------------
+  | Delete Deployment
+  helm del --purge cert-manager;
+  helm del --purge nginx-ingress;
+  helm del --purge mysql;
+  helm del --purge redis;
+  helm del --purge app;
+  kubectl delete namespace app;
+  |------------------------
+*//*
+  |------------------------
+  | Secret
+vs6DwHm7r4rnN9oL
+
+KukuaFNrN1jEmpK7
+  |------------------------
+*//*
+  |------------------------
+  |
+  |
+  |
+  |
+  |
+  |
+  |
+  |
+  |
+  |
+  |------------------------
+*/
+
+
+  DB_CONNECTION:       "pgsql"
+  DB_HOST:             "10.107.225.4"
+  DB_PORT:             "5432"
+  DB_DATABASE:         "app"
+  DB_USERNAME:         "postgres"
+  DB_PASSWORD:         "KukuaFNrN1jEmpK7"
+
+  DB_CONNECTION:       "mysql"
+  DB_HOST:             "10.107.224.3"
+  DB_PORT:             "3306"
+  DB_DATABASE:         "app"
+  DB_USERNAME:         "root"
+  DB_PASSWORD:         "vs6DwHm7r4rnN9oL"
+  gcloud container clusters get-credentials production --zone asia-south1-a --project app-com
+kubectl config set-context --current --namespace=app
+yA9mppsDdJbhHiNt
+   brew services start postgresql

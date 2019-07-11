@@ -1,0 +1,87 @@
+---
+# Global settings
+createSecret: true
+database: postgresql
+host: app.com
+imagePullPolicy: Always
+tag: latest
+
+# image port in the pod
+service:
+  type: ClusterIP
+  externalPort: 80
+  internalPort: 80
+
+# Components
+celery:
+  enabled: true
+  broker: rabbitmq
+  repository: gcr.io/app-com/django
+  logLevel: DEBUG
+  beat:
+    affinity: {}
+    nodeSelector: {}
+    resources: {}
+    tolerations: []
+  worker:
+    affinity: {}
+    repository: gcr.io/app-com/django
+    logLevel: DEBUG
+    nodeSelector: {}
+    replicas: 1
+    resources:
+      requests: {}
+    tolerations: []
+
+app:
+  affinity: {}
+  ingress:
+    enabled: true
+    annotations:
+      kubernetes.io/ingress.class: nginx
+      kubernetes.io/tls-acme: "true"
+      certmanager.k8s.io/cluster-issuer: letsencrypt-prod
+      nginx.ingress.kubernetes.io/proxy-body-size: "512m"
+      #certmanager.k8s.io/cluster-issuer: letsencrypt-staging
+    path: /
+    hosts:
+      - app.com
+      - www.app.com
+      - app.com.bd
+      - www.app.com.bd
+    tls:
+      - hosts:
+        - app.com
+        - www.app.com
+        - app.com.bd
+        - www.app.com.bd
+        secretName: app-com-tls
+  nginx:
+    repository: gcr.io/app-com/nginx
+    resources:
+      requests: {}
+  nodeSelector: {}
+  replicas: 1
+  tolerations: []
+  django:
+    repository: gcr.io/app-com/django
+    resources:
+      requests: {}
+
+postgresql:
+  enabled: true
+  postgresqlUsername: root
+  postgresqlDatabase: app
+  persistence:
+    enabled: false
+  replication:
+    enabled: false
+
+rabbitmq:
+  enabled: true
+  replicas: 1
+
+redis:
+  enabled: false
+  cluster:
+    slaveCount: 1

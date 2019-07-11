@@ -1,0 +1,20 @@
+{{- $fullName := include "app.fullname" . -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fullName }}-nginx
+  labels:
+    app: {{ template "app.name" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+    chart: {{ template "app.chart" . }}
+spec:
+  type: {{ .Values.service.type }}
+  selector:
+    app: {{ template "app.name" . }}
+    release: {{ .Release.Name }}
+  ports:
+  - name: http
+    protocol: TCP
+    port: 80
+    targetPort: 80

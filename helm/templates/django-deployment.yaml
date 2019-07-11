@@ -1,0 +1,126 @@
+{{- $fullName := include "app.fullname" . -}}
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: {{ $fullName }}
+  labels:
+    app: {{ template "app.name" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+    chart: {{ template "app.chart" . }}
+
+spec:
+  replicas: {{ .Values.app.replicas }}
+  minReadySeconds: 20
+  selector:
+    matchLabels:
+      app: {{ template "app.name" . }}
+      release: {{ .Release.Name }}
+
+  strategy:
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+    type: RollingUpdate
+
+  template:
+    metadata:
+      labels:
+        app: {{ template "app.name" . }}
+        release: {{ .Release.Name }}
+
+    spec:
+      volumes:
+        - name: run
+          emptyDir: {}
+
+      # inject hostname to connect nginx with php-fpm backend
+      # because dokcer calls it backend while kubernetes requires Pod's localhost
+      hostAliases:
+        - ip: "127.0.0.1"
+          hostnames:
+            - "django"
+
+      containers:
+        - name: django
+          workingDir: /app
+          image: '{{ .Values.app.django.repository }}:{{ .Values.tag }}'
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
+          ports:
+            - containerPort: 8080
+          volumeMounts:
+            - name: run
+              mountPath: /run
+          envFrom:
+            - configMapRef:
+                name: {{ $fullName }}
+          env:
+            - name: DD_CELERY_BROKER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $fullName }}-{{ .Values.celery.broker }}
+                  key: {{ .Values.celery.broker }}-password
+            - name: DD_DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $fullName }}-{{ .Values.database }}
+                  key: {{ .Values.database }}-password
+          resources:
+            {{- toYaml .Values.app.django.resources | nindent 12 }}
+
+        - name: nginx
+          workingDir: /app
+          image: '{{ .Values.app.nginx.repository }}:{{ .Values.tag }}'
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
+          ports:
+            - containerPort: 80
+          volumeMounts:
+            - name: run
+              mountPath: /run
+
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+
+          envFrom:
+            - configMapRef:
+                name: {{ $fullName }}
+
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+              httpHeaders:
+                - name: Host
+                  value: {{ .Values.host }}
+            initialDelaySeconds: 120
+            periodSeconds: 10
+            failureThreshold: 6
+
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+              httpHeaders:
+                - name: Host
+                  value: {{ .Values.host }}
+            initialDelaySeconds: 120
+            periodSeconds: 10
+            failureThreshold: 12
+
+          resources:
+            {{- toYaml .Values.app.nginx.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    {{- with .Values.app.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+    {{- with .Values.app.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}

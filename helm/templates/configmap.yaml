@@ -1,0 +1,20 @@
+{{- $fullName := include "app.fullname" . -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $fullName }}
+  labels:
+    app: {{ template "app.name" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+    chart: {{ template "app.chart" . }}
+data:
+  DD_ALLOWED_HOSTS: {{ .Values.host }}
+  DD_CELERY_BROKER_SCHEME: {{ if eq .Values.celery.broker "rabbitmq" }}amqp{{ end }}{{ if eq .Values.celery.broker "redis" }}redis{{ end }}
+  DD_CELERY_BROKER_USER: '{{ if eq .Values.celery.broker "rabbitmq" }}user{{ end }}'
+  DD_CELERY_BROKER_HOST: {{ $fullName }}-{{ if eq .Values.celery.broker "rabbitmq" }}rabbitmq{{ end }}{{ if eq .Values.celery.broker "redis" }}redis-master{{ end }}
+  DD_CELERY_BROKER_PORT: '{{ if eq .Values.celery.broker "rabbitmq" }}5672{{ end }}{{ if eq .Values.celery.broker "redis" }}6379{{ end }}'
+  DD_CELERY_LOG_LEVEL: {{ .Values.celery.logLevel }}
+  DD_UWSGI_ENDPOINT: /run/django.sock
+  DD_UWSGI_HOST: localhost
+  DD_UWSGI_PASS: unix:///run/django.sock

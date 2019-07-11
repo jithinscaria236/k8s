@@ -1,0 +1,37 @@
+{{- $fullName := include "app.fullname" . -}}
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ include "app.fullname" . }}-unit-tests
+  labels:
+    app: {{ template "app.name" . }}
+    chart: {{ template "app.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+  annotations:
+    helm.sh/hook: test-success
+spec:
+  containers:
+    - name: unit-tests
+      image: '{{ .Values.app.django.repository }}:{{ .Values.tag }}'
+      imagePullPolicy: {{ .Values.imagePullPolicy }}
+      command: ['/entrypoint-unit-tests.sh']
+      envFrom:
+        - configMapRef:
+            name: {{ $fullName }}
+      env:
+        - name: DD_DATABASE_USER
+          value: {{ if eq .Values.database "postgresql" }}{{ .Values.postgresql.postgresqlUsername }}{{ end }}{{ if eq .Values.database "mysql" }}root{{ end }}
+        - name: DD_CELERY_BROKER_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ $fullName }}-{{ .Values.celery.broker }}
+              key: {{ .Values.celery.broker }}-password
+        - name: DD_DATABASE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ $fullName }}-{{ .Values.database }}
+              key: {{ if eq .Values.database "postgresql" }}{{ .Values.database }}-password{{ end }}{{ if eq .Values.database "mysql" }}{{ .Values.database }}-root-password{{ end }}
+        - name: DD_DEBUG
+          value: 'on'
+  restartPolicy: Never
